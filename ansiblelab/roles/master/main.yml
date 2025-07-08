@@ -1,0 +1,86 @@
+- name: 쿠버네티스 클러스터 초기화
+  command: "kubeadm init --pod-network-cidr=192.168.0.0/16 --apiserver-advertise-address={{ master_private_ip }}"
+  args:
+    creates: /etc/kubernetes/admin.conf
+
+- name: centos 사용자의 .kube 디렉토리 생성
+  file:
+    path: /home/centos/.kube
+    state: directory
+    owner: centos
+    group: centos
+    mode: '0755'
+
+- name: admin.conf를 centos 사용자 홈으로 복사
+  copy:
+    src: /etc/kubernetes/admin.conf
+    dest: /home/centos/.kube/config
+    remote_src: yes
+    owner: centos
+    group: centos
+    mode: '0644'
+
+- name: root 사용자의 .kube 디렉토리 생성
+  file:
+    path: /root/.kube
+    state: directory
+    mode: '0755'
+
+- name: admin.conf를 root 사용자 홈으로 복사
+  copy:
+    src: /etc/kubernetes/admin.conf
+    dest: /root/.kube/config
+    mode: '0644'
+    remote_src: yes
+
+- name: Calico 네트워크 CNI 설치
+  become: no
+  command: kubectl apply -f https://raw.githubusercontent.com/projectcalico/calico/v3.27.3/manifests/calico.yaml
+  args:
+    creates: /etc/cni/net.d/10-calico.conflist
+
+- name: 조인 토큰 생성
+  command: kubeadm token create --print-join-command
+  register: join_command_result
+
+- name: 조인 명령어를 호스트 변수로 설정
+  set_fact:
+    join_command: "{{ join_command_result.stdout }}"
+
+- name: 조인 명령어를 다른 호스트들과 공유
+  add_host:
+    name: "{{ item }}"
+    join_command: "{{ join_command_result.stdout }}"
+  loop: "{{ groups['workers'] }}"
+
+- name: 마스터 노드가 Ready 상태가 될 때까지 대기
+  shell: kubectl get nodes {{ ansible_hostname }} -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}'
+  become_user: centos
+  environment:
+    KUBECONFIG: /home/centos/.kube/config
+  register: node_ready_status
+  until: node_ready_status.stdout == "True"
+  retries: 30
+  delay: 10
+
+- name: 클러스터 상태 확인
+  shell: kubectl get nodes -o wide
+  become_user: centos
+  environment:
+    KUBECONFIG: /home/centos/.kube/config
+  register: cluster_status
+
+- name: 클러스터 상태 출력
+  debug:
+    var: cluster_status.stdout_lines
+
+- name: Pod 상태 확인
+  shell: kubectl get pods --all-namespaces
+  become_user: centos
+  environment:
+    KUBECONFIG: /home/centos/.kube/config
+  register: pod_status
+
+- name: Pod 상태 출력
+  debug:
+    var: pod_status.stdout_lines

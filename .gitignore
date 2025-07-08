@@ -1,0 +1,41 @@
+# # # Terraform # # #
+# 로컬 Terraform 상태 파일 (중요: 인프라 정보 및 민감 정보 포함 가능)
+terraform.tfstate
+terraform.tfstate.backup
+
+# Terraform 실행 시 생성되는 임시 디렉토리 및 파일
+.terraform/
+.terraform.lock.hcl
+crash.log
+*.tfvars.json
+*.tfvars
+
+# # # Ansible # # #
+# 동적으로 생성되는 인벤토리 파일
+ansible/inventory.ini
+
+# # # 민감 정보 및 자격 증명 # # #
+# OpenStack 인증 파일 (절대로 올리면 안됩니다!)
+openrc.sh
+admin-openrc_*.sh  # 스크린샷에 보이는 파일명 패턴 포함
+*openrc*.sh
+
+# Kubernetes 설정 파일 (클러스터 접근 키 포함)
+kubeconfig
+
+# SSH 개인 키
+*.pem
+id_rsa
+
+# # # 운영체제 및 IDE/에디터 파일 # # #
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+
+# VSCode
+.vscode/
+
+# JetBrains (IntelliJ, PyCharm 등)
+.idea/

@@ -1,0 +1,14 @@
+- name: 모든 노드 준비
+  hosts: all
+  roles:
+    - common
+
+- name: 마스터 노드 설정
+  hosts: master
+  roles:
+    - master
+
+- name: 클러스터에 워커 노드 조인
+  hosts: workers
+  roles:
+    - worker
