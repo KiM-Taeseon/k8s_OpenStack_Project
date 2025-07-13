@@ -1,0 +1,14 @@
+apiVersion: kubeadm.k8s.io/v1beta3
+kind: InitConfiguration
+nodeRegistration:
+  criSocket: unix:///var/run/containerd/containerd.sock
+  name: "{{ ansible_hostname }}"
+  ignorePreflightErrors:
+    - Swap
+---
+apiVersion: kubeadm.k8s.io/v1beta3
+kind: ClusterConfiguration
+kubernetesVersion: v1.28.0
+controlPlaneEndpoint: "{{ ansible_default_ipv4.address }}:6443"
+networking:
+  podSubnet: "10.244.0.0/16"

@@ -1,11 +1,11 @@
 variable "master_flavor_name" {
   description = "Flavor for the master node"
-  default     = "m1.medium" 
+  default     = "t2.medium" 
 }
 
 variable "worker_flavor_name" {
   description = "Flavor for the worker nodes"
-  default     = "m1.medium" 
+  default     = "t2.medium" 
 }
 
 variable "worker_count" {

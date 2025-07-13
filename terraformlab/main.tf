@@ -39,7 +39,7 @@ resource "openstack_networking_subnet_v2" "k8s_subnet" {
   network_id      = openstack_networking_network_v2.k8s_network.id
   cidr       = "10.0.1.0/24"
   ip_version = 4
-  dns_nameservers = ["8.8.8.8"]
+  dns_nameservers = ["8.8.8.8", "8.8.4.4"]
 }
 
 # 라우터 생성 및 외부 게이트웨이 설정
@@ -55,14 +55,12 @@ resource "openstack_networking_router_interface_v2" "k8s_router_interface" {
   subnet_id = openstack_networking_subnet_v2.k8s_subnet.id
 }
 
-
-
 # 마스터 노드
 resource "openstack_compute_instance_v2" "k8s_master" {
   name              = "k8s-master"
-  image_id          = "3a3f260a-dd93-4531-a781-f4eb0f53709f" # basic과 같은 이미지 ID 사용
+  image_id          = "3a3f260a-dd93-4531-a781-f4eb0f53709f" 
   flavor_name       = var.master_flavor_name
-  key_pair          = openstack_compute_keypair_v2.k8s_keypair.name 
+  key_pair          = openstack_compute_keypair_v2.k8s_keypair.name
   security_groups   = [openstack_compute_secgroup_v2.k8s_sg.name]
 
   network {
@@ -73,9 +71,23 @@ resource "openstack_compute_instance_v2" "k8s_master" {
     create_before_destroy = true
   }
 
-   depends_on = [
+  depends_on = [
     openstack_networking_router_interface_v2.k8s_router_interface
   ]
+
+  
+  user_data = <<-EOF
+              #cloud-config
+              package_update: false
+              package_upgrade: false
+              users:
+                - name: ubuntu
+                  sudo: ['ALL=(ALL) NOPASSWD:ALL']
+                  groups: [sudo]
+                  shell: /bin/bash
+                  ssh_authorized_keys:
+                    - ${tls_private_key.ssh_key.public_key_openssh}
+              EOF
 }
 
 # 마스터 노드에 Floating IP 할당
@@ -91,8 +103,8 @@ resource "openstack_compute_floatingip_associate_v2" "master_fip_assoc" {
 # 워커 노드
 resource "openstack_compute_instance_v2" "k8s_worker" {
   count             = var.worker_count
-  name              = "k8s-worker-${count.index}"
-  image_id          = "3a3f260a-dd93-4531-a781-f4eb0f53709f"
+  name              = "k8s-worker-${count.index + 1}"
+  image_id          = "3a3f260a-dd93-4531-a781-f4eb0f53709f" 
   flavor_name       = var.worker_flavor_name
   key_pair          = openstack_compute_keypair_v2.k8s_keypair.name
   security_groups   = [openstack_compute_secgroup_v2.k8s_sg.name]
@@ -106,10 +118,24 @@ resource "openstack_compute_instance_v2" "k8s_worker" {
   }
 
   depends_on = [
-    openstack_networking_router_interface_v2.k8s_router_interface
+    openstack_networking_router_interface_v2.k8s_router_interface,
+    openstack_compute_instance_v2.k8s_master
   ]
-}
 
+  
+  user_data = <<-EOF
+              #cloud-config
+              package_update: false
+              package_upgrade: false
+              users:
+                - name: ubuntu
+                  sudo: ['ALL=(ALL) NOPASSWD:ALL']
+                  groups: [sudo]
+                  shell: /bin/bash
+                  ssh_authorized_keys:
+                    - ${tls_private_key.ssh_key.public_key_openssh}
+              EOF
+}
 
 # 워커 노드들에 Floating IP 할당
 resource "openstack_networking_floatingip_v2" "worker_fips" {

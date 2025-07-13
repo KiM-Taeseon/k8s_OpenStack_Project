@@ -3,6 +3,7 @@ resource "openstack_compute_secgroup_v2" "k8s_sg" {
   description = "Security group for Kubernetes cluster"
 }
 
+
 # SSH 접속 허용 (모든 IP)
 resource "openstack_networking_secgroup_rule_v2" "k8s_sg_rule_ssh" {
   direction         = "ingress" 
@@ -24,10 +25,10 @@ resource "openstack_networking_secgroup_rule_v2" "k8s_sg_rule_icmp" {
 }
 
 
-resource "openstack_networking_secgroup_rule_v2" "k8s_sg_rule_self" {
+resource "openstack_networking_secgroup_rule_v2" "k8s_sg_rule_internal" {
   direction         = "ingress"
   ethertype         = "IPv4"
-  remote_group_id   = openstack_compute_secgroup_v2.k8s_sg.id
+  remote_ip_prefix  = openstack_networking_subnet_v2.k8s_subnet.cidr 
   security_group_id = openstack_compute_secgroup_v2.k8s_sg.id
 }
 

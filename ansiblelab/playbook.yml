@@ -1,14 +1,18 @@
+---
 - name: 모든 노드 준비
   hosts: all
+  become: yes
   roles:
     - common
 
 - name: 마스터 노드 설정
-  hosts: master
+  hosts: masters  # <-- [수정] master -> masters (복수형)
+  become: yes
   roles:
     - master
 
 - name: 클러스터에 워커 노드 조인
   hosts: workers
+  become: yes
   roles:
     - worker

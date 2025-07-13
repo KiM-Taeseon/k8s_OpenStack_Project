@@ -1,0 +1,20 @@
+---
+- name: 워커 노드가 이미 클러스터에 조인했는지 확인
+  ansible.builtin.stat:
+    path: /etc/kubernetes/kubelet.conf
+  register: kubelet_conf_stat
+
+- name: 클러스터에 조인 (필요한 경우에만 실행)
+  # [수정] 스왑 오류를 무시하는 옵션을 추가
+  ansible.builtin.command: >-
+    sudo {{ hostvars[groups['masters'][0]]['join_command'] }}
+    --cri-socket=unix:///var/run/containerd/containerd.sock
+    --ignore-preflight-errors=Swap
+  when: not kubelet_conf_stat.stat.exists
+  changed_when: true
+  register: join_result
+
+- name: 조인 결과 출력 (조인이 실행된 경우에만)
+  ansible.builtin.debug:
+    var: join_result.stdout_lines
+  when: join_result.changed

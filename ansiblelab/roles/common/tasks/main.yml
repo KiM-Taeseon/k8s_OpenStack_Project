@@ -1,0 +1,164 @@
+---
+- name: unattended-upgrades 서비스 중지 및 비활성화
+  ansible.builtin.systemd:
+    name: unattended-upgrades
+    state: stopped
+    enabled: no
+  ignore_errors: yes # 서비스가 없는 구형 OS에서도 오류가 나지 않도록 함
+
+- name: 남아있을 수 있는 apt 잠금 파일 제거
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /var/lib/dpkg/lock
+    - /var/lib/dpkg/lock-frontend
+    - /var/cache/apt/archives/lock
+  become: yes
+
+- name: 네트워크 안정성 확보를 위한 apt-get update 재시도
+  ansible.builtin.command: apt-get update
+  register: apt_update_result
+  until: apt_update_result.rc is defined and apt_update_result.rc == 0
+  retries: 5                        # 최대 5번 시도
+  delay: 10                         # 각 시도 사이에 10초 대기
+  changed_when: false               # 이 작업은 상태를 변경하지 않음
+  become: yes                       # 루트 권한으로 실행
+
+- name: 스왑 비활성화
+  ansible.builtin.command: swapoff -a
+  changed_when: false
+
+- name: 재부팅 후 스왑 비활성화 (fstab 주석 처리)
+  ansible.builtin.replace:
+    path: /etc/fstab
+    regexp: '^(\s*[^#\s]+\s+[^#\s]+\s+swap\s+.*)$'
+    replace: '# \1'
+
+# [수정됨] SELinux는 Ubuntu/Debian에 기본 설치되지 않으므로 제거
+
+# [수정됨] 방화벽을 firewalld에서 ufw로 변경
+- name: 방화벽(ufw) 비활성화
+  ansible.builtin.systemd:
+    name: ufw
+    state: stopped
+    enabled: no
+  ignore_errors: yes # ufw가 설치되지 않은 경우를 대비
+
+# [수정됨] 패키지 설치를 yum에서 apt로 변경
+- name: 필수 패키지 설치
+  ansible.builtin.apt:
+    name:
+      - apt-transport-https
+      - ca-certificates
+      - curl
+      - gnupg
+      - lsb-release
+    state: present
+    update_cache: no
+
+- name: 브리지 네트워크 설정 및 모듈 로드
+  ansible.builtin.modprobe:
+    name: "{{ item }}"
+    state: present
+  loop:
+    - overlay
+    - br_netfilter
+
+- name: 쿠버네티스를 위한 커널 파라미터 설정
+  ansible.builtin.sysctl:
+    name: "{{ item.key }}"
+    value: "{{ item.value }}"
+    state: present
+    sysctl_file: /etc/sysctl.d/99-kubernetes-cri.conf
+    reload: yes
+  loop:
+    - { key: 'net.bridge.bridge-nf-call-iptables', value: '1' }
+    - { key: 'net.ipv4.ip_forward', value: '1' }
+    - { key: 'net.bridge.bridge-nf-call-ip6tables', value: '1' }
+
+
+- name: containerd 설치
+  ansible.builtin.apt:
+    name: containerd
+    state: present
+    update_cache: yes # containerd 설치를 위해 한번 더 업데이트
+
+- name: containerd 설정 디렉터리 생성
+  ansible.builtin.file:
+    path: /etc/containerd
+    state: directory
+
+- name: containerd 기본 설정 파일 생성
+  ansible.builtin.shell: containerd config default | sudo tee /etc/containerd/config.toml
+  args:
+    creates: /etc/containerd/config.toml
+  changed_when: false
+
+- name: containerd 설정에서 SystemdCgroup을 true로 변경
+  ansible.builtin.replace:
+    path: /etc/containerd/config.toml
+    regexp: 'SystemdCgroup = false'
+    replace: 'SystemdCgroup = true'
+
+- name: containerd 서비스 재시작 및 활성화
+  ansible.builtin.systemd:
+    name: containerd
+    state: restarted
+    enabled: yes
+    daemon_reload: yes
+
+
+- name: /etc/apt/keyrings 디렉터리가 있는지 확인
+  ansible.builtin.stat:
+    path: /etc/apt/keyrings
+  register: keyrings_dir
+
+- name: /etc/apt/keyrings 디렉터리 생성
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: '0755'
+
+- name: Kubernetes GPG 키를 다운로드하여 바이너리 형식으로 변환 (dearmor)
+  ansible.builtin.shell: >-
+    curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.28/deb/Release.key |
+    gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+  args:
+    # 이 작업은 /etc/apt/keyrings/kubernetes-apt-keyring.gpg 파일이 없을 때만 실행됩니다.
+    creates: /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+  changed_when: false
+
+- name: 쿠버네티스 APT 저장소 추가
+  ansible.builtin.apt_repository:
+    repo: "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.28/deb/ /"
+    state: present
+    filename: kubernetes
+    update_cache: false
+    
+# [수정됨] 쿠버네티스 패키지 설치를 yum에서 apt로 변경
+- name: 쿠버네티스 패키지 설치 (kubelet, kubeadm, kubectl)
+  ansible.builtin.apt:
+    name:
+      - kubelet
+      - kubeadm
+      - kubectl
+    state: present
+    update_cache: yes
+
+- name: 특정 버전의 패키지가 업데이트되지 않도록 고정 (hold)
+  ansible.builtin.dpkg_selections:
+    name: "{{ item }}"
+    selection: hold
+  loop:
+    - kubelet
+    - kubeadm
+    - kubectl
+
+- name: kubelet 서비스 활성화
+  ansible.builtin.systemd:
+    name: kubelet
+    enabled: yes
+    daemon_reload: yes
+    state: started
+# -----------------------------------------------------------------
