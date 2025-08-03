@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="1070px" height="700px" viewBox="0 0 1070 700">
+  <defs>
+    <style>
+      .title { font-family: Arial, sans-serif; font-size: 16px; font-weight: bold; }
+      .subtitle { font-family: Arial, sans-serif; font-size: 12px; font-weight: bold; }
+      .text { font-family: Arial, sans-serif; font-size: 11px; }
+      .small-text { font-family: Arial, sans-serif; font-size: 10px; }
+    </style>
+  </defs>
+  
+  <!-- OpenStack Environment Background -->
+  <rect x="0" y="0" width="1070" height="700" fill="#e1d5e7" stroke="#9673a6" stroke-width="2" rx="10"/>
+  <text x="535" y="30" text-anchor="middle" class="title" fill="#333">OpenStack 환경</text>
+  
+  <!-- External Network -->
+  <rect x="50" y="50" width="150" height="80" fill="#dae8fc" stroke="#6c8ebf" stroke-width="2" rx="5"/>
+  <text x="125" y="80" text-anchor="middle" class="subtitle" fill="#333">External Network</text>
+  <text x="125" y="100" text-anchor="middle" class="subtitle" fill="#333">(extnet)</text>
+  
+  <!-- Router -->
+  <rect x="300" y="50" width="120" height="80" fill="#fff2cc" stroke="#d6b656" stroke-width="2" rx="5"/>
+  <text x="360" y="80" text-anchor="middle" class="subtitle" fill="#333">k8s-router</text>
+  <text x="360" y="100" text-anchor="middle" class="subtitle" fill="#333">(Router)</text>
+  
+  <!-- Connection from extnet to router -->
+  <line x1="200" y1="90" x2="300" y2="90" stroke="#333" stroke-width="2" marker-end="url(#arrowhead)"/>
+  
+  <!-- Internal Network -->
+  <rect x="50" y="200" width="950" height="450" fill="#f8cecc" stroke="#b85450" stroke-width="2" rx="10"/>
+  <text x="525" y="230" text-anchor="middle" class="subtitle" fill="#333">k8s-net (10.0.1.0/24)</text>
+  
+  <!-- Connection from router to internal network -->
+  <line x1="360" y1="130" x2="360" y2="200" stroke="#333" stroke-width="2" marker-end="url(#arrowhead)"/>
+  
+  <!-- Master Node -->
+  <rect x="150" y="270" width="150" height="200" fill="#d5e8d4" stroke="#82b366" stroke-width="2" rx="5"/>
+  <text x="225" y="290" text-anchor="middle" class="subtitle" fill="#333">k8s-master</text>
+  <text x="225" y="305" text-anchor="middle" class="text" fill="#333">(Master Node)</text>
+  <text x="160" y="330" class="text" fill="#333">• Control Plane</text>
+  <text x="160" y="345" class="text" fill="#333">• etcd</text>
+  <text x="160" y="360" class="text" fill="#333">• API Server</text>
+  <text x="160" y="375" class="text" fill="#333">• Scheduler</text>
+  <text x="160" y="390" class="text" fill="#333">• Controller</text>
+  <text x="160" y="405" class="text" fill="#333">• containerd</text>
+  
+  <!-- Worker Node -->
+  <rect x="550" y="270" width="150" height="200" fill="#d5e8d4" stroke="#82b366" stroke-width="2" rx="5"/>
+  <text x="625" y="290" text-anchor="middle" class="subtitle" fill="#333">k8s-worker-1</text>
+  <text x="625" y="305" text-anchor="middle" class="text" fill="#333">(Worker Node)</text>
+  <text x="560" y="330" class="text" fill="#333">• kubelet</text>
+  <text x="560" y="345" class="text" fill="#333">• kube-proxy</text>
+  <text x="560" y="360" class="text" fill="#333">• containerd</text>
+  
+  <!-- Master Floating IP -->
+  <rect x="185" y="510" width="80" height="50" fill="#ffe6cc" stroke="#d79b00" stroke-width="2" rx="5"/>
+  <text x="225" y="530" text-anchor="middle" class="small-text" fill="#333">Floating IP</text>
+  <text x="225" y="545" text-anchor="middle" class="small-text" fill="#333">(Public)</text>
+  
+  <!-- Worker Floating IP -->
+  <rect x="585" y="510" width="80" height="50" fill="#ffe6cc" stroke="#d79b00" stroke-width="2" rx="5"/>
+  <text x="625" y="530" text-anchor="middle" class="small-text" fill="#333">Floating IP</text>
+  <text x="625" y="545" text-anchor="middle" class="small-text" fill="#333">(Public)</text>
+  
+  <!-- Connections to Floating IPs -->
+  <line x1="225" y1="470" x2="225" y2="510" stroke="#333" stroke-width="2" marker-end="url(#arrowhead)"/>
+  <line x1="625" y1="470" x2="625" y2="510" stroke="#333" stroke-width="2" marker-end="url(#arrowhead)"/>
+  
+  <!-- Kubernetes cluster connection -->
+  <line x1="300" y1="370" x2="550" y2="370" stroke="#FF6B6B" stroke-width="3" marker-end="url(#arrowhead)" marker-start="url(#arrowhead)"/>
+  <text x="425" y="360" text-anchor="middle" class="text" fill="#FF6B6B" font-weight="bold">Kubernetes Cluster</text>
+  
+  <!-- Security Group Info -->
+  <rect x="800" y="270" width="180" height="100" fill="#f5f5f5" stroke="#666666" stroke-width="1" rx="5"/>
+  <text x="810" y="290" class="text" fill="#333" font-weight="bold">보안 그룹 설정:</text>
+  <text x="810" y="305" class="small-text" fill="#333">• SSH (22)</text>
+  <text x="810" y="320" class="small-text" fill="#333">• Kubernetes API (6443)</text>
+  <text x="810" y="335" class="small-text" fill="#333">• Kubelet (10250)</text>
+  <text x="810" y="350" class="small-text" fill="#333">• NodePort (30000-32767)</text>
+  
+  <!-- Network Info -->
+  <rect x="800" y="400" width="180" height="80" fill="#f5f5f5" stroke="#666666" stroke-width="1" rx="5"/>
+  <text x="810" y="420" class="text" fill="#333" font-weight="bold">네트워킹:</text>
+  <text x="810" y="435" class="small-text" fill="#333">• CNI: Calico</text>
+  <text x="810" y="450" class="small-text" fill="#333">• Pod Subnet: 10.244.0.0/16</text>
+  <text x="810" y="465" class="small-text" fill="#333">• Service Subnet: 10.96.0.0/12</text>
+  
+  <!-- Arrow marker definition -->
+  <defs>
+    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#333"/>
+    </marker>
+  </defs>
+</svg>

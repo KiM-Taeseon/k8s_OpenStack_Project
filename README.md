@@ -8,43 +8,7 @@ OpenStack 클라우드 환경에서 완전히 자동화된 Kubernetes 클러스�
 
 ## 아키텍처
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    OpenStack 환경                           │
-├─────────────────────────────────────────────────────────────┤
-│  ┌─────────────────┐    ┌─────────────────┐                │
-│  │   External      │    │   k8s-router    │                │
-│  │   Network       │────│   (Router)      │                │
-│  │   (extnet)      │    └─────────────────┘                │
-│  └─────────────────┘             │                         │
-│                                   │                         │
-│  ┌─────────────────────────────────┼─────────────────────────┐ │
-│  │           k8s-net (10.0.1.0/24) │                       │ │
-│  │                                 │                       │ │
-│  │  ┌─────────────────┐           ┌┴─────────────────┐     │ │
-│  │  │   k8s-master    │           │   k8s-worker-1   │     │ │
-│  │  │  (Master Node)  │           │  (Worker Node)   │     │ │
-│  │  │                 │           │                  │     │ │
-│  │  │ - Control Plane │           │ - kubelet        │     │ │
-│  │  │ - etcd          │           │ - kube-proxy     │     │ │
-│  │  │ - API Server    │           │ - containerd     │     │ │
-│  │  │ - Scheduler     │           │                  │     │ │
-│  │  │ - Controller    │           │                  │     │ │
-│  │  │ - containerd    │           │                  │     │ │
-│  │  └─────────────────┘           └──────────────────┘     │ │
-│  │          │                              │               │ │
-│  │  ┌───────┴───────┐              ┌──────┴──────┐        │ │
-│  │  │ Floating IP   │              │ Floating IP │        │ │
-│  │  │ (Public)      │              │ (Public)    │        │ │
-│  │  └───────────────┘              └─────────────┘        │ │
-│  └─────────────────────────────────────────────────────────┘ │
-└─────────────────────────────────────────────────────────────┘
-
-네트워킹:
-- CNI: Calico (Pod Subnet: 10.244.0.0/16)
-- Service Subnet: 10.96.0.0/12 (기본값)
-- 보안 그룹: SSH(22), Kubernetes API(6443), Kubelet(10250), NodePort(30000-32767)
-```
+![OpenStack Kubernetes Architecture](./images/architecture.svg)
 
 ## 주요 기능
 
@@ -68,21 +32,21 @@ OpenStack 클라우드 환경에서 완전히 자동화된 Kubernetes 클러스�
 
 ```
 k8s_OpenStack_Project/
-├── deploy.sh                 # 배포 스크립트
-├── destroy.sh               # 정리 스크립트
-├── terraformlab/           # Terraform 설정 파일들
-│   ├── main.tf             # 주요 인프라 리소스 정의
-│   ├── variables.tf        # 변수 정의
-│   ├── output.tf           # 출력 값 정의
-│   ├── provider.tf         # OpenStack 프로바이더 설정
-│   └── securitygroup.tf    # 보안 그룹 설정
-└── ansiblelab/             # Ansible 설정 파일들
-    ├── playbook.yml        # 메인 플레이북
-    ├── ansible.cfg         # Ansible 설정
-    └── roles/              # Ansible 역할들
-        ├── common/         # 공통 설정 (모든 노드)
-        ├── master/         # 마스터 노드 설정
-        └── worker/         # 워커 노드 설정
+├── deploy.sh                 
+├── destroy.sh               
+├── terraformlab/           
+│   ├── main.tf             
+│   ├── variables.tf        
+│   ├── output.tf           
+│   ├── provider.tf         
+│   └── securitygroup.tf    
+└── ansiblelab/             
+    ├── playbook.yml        
+    ├── ansible.cfg         
+    └── roles/              
+        ├── common/         
+        ├── master/         
+        └── worker/         
 ```
 
 ## 사전 요구사항
@@ -116,7 +80,6 @@ cd k8s_OpenStack_Project
 ### 2. OpenStack 인증 정보 설정
 `admin-openrc_.sh` 파일을 생성하고 OpenStack 인증 정보를 설정합니다:
 ```bash
-# admin-openrc_.sh 예시
 export OS_PROJECT_DOMAIN_NAME=Default
 export OS_USER_DOMAIN_NAME=Default
 export OS_PROJECT_NAME=admin
@@ -151,6 +114,50 @@ kubectl get pods --all-namespaces
 ```bash
 chmod +x destroy.sh
 ./destroy.sh
+```
+
+## 배포 결과
+
+### 배포 완료 메시지
+```bash
+#           축하합니다! 모든 배포가 완료되었습니다!          #
+
+이제 아래 명령어로 클러스터에 접근할 수 있습니다:
+
+export KUBECONFIG=./kubeconfig
+kubectl get nodes
+```
+
+### 클러스터 노드 확인
+```bash
+$ kubectl get nodes
+NAME         STATUS   ROLES           AGE   VERSION
+k8s-master   Ready    control-plane   5m    v1.28.0
+k8s-worker-1 Ready    <none>          4m    v1.28.0
+```
+
+### 시스템 Pod 상태 확인
+```bash
+$ kubectl get pods --all-namespaces
+NAMESPACE     NAME                                 READY   STATUS    RESTARTS   AGE
+kube-system   calico-kube-controllers-7ddc4f45bc-xyz123   1/1     Running   0          4m
+kube-system   calico-node-abc456                   1/1     Running   0          4m
+kube-system   calico-node-def789                   1/1     Running   0          4m
+kube-system   coredns-5dd5756b68-ghi012            1/1     Running   0          5m
+kube-system   coredns-5dd5756b68-jkl345            1/1     Running   0          5m
+kube-system   etcd-k8s-master                      1/1     Running   0          5m
+kube-system   kube-apiserver-k8s-master            1/1     Running   0          5m
+kube-system   kube-controller-manager-k8s-master   1/1     Running   0          5m
+kube-system   kube-proxy-mno678                    1/1     Running   0          5m
+kube-system   kube-proxy-pqr901                    1/1     Running   0          4m
+kube-system   kube-scheduler-k8s-master            1/1     Running   0          5m
+```
+
+### 클러스터 정보 확인
+```bash
+$ kubectl cluster-info
+Kubernetes control plane is running at https://10.0.1.100:6443
+CoreDNS is running at https://10.0.1.100:6443/api/v1/namespaces/kube-system/services/kube-dns:dns/proxy
 ```
 
 ## 배포 과정
@@ -224,19 +231,3 @@ ansible-playbook -i inventory.ini playbook.yml -vvv
 kubectl logs -n kube-system <pod-name>
 journalctl -u kubelet
 ```
-
-## 기여하기
-
-1. Fork the repository
-2. Create a feature branch
-3. Commit your changes
-4. Push to the branch
-5. Create a Pull Request
-
-## 라이선스
-
-이 프로젝트는 MIT 라이선스 하에 배포됩니다.
-
-## 연락처
-
-프로젝트에 대한 질문이나 제안사항이 있으시면 GitHub Issues를 통해 연락해 주세요.
